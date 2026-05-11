@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# Vite
+.vite/
+
+# Electron
+.electron/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.trae/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test
+coverage/
+playwright-report/
+test-results/
+
+# Misc
+*.tgz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
