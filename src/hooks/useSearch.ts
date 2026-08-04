@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
+import type { ToastType } from './useToast';
 
-export function useSearch() {
+type ToastFn = (message: string, type?: ToastType) => void;
+
+export function useSearch(toast: ToastFn) {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]);
@@ -18,7 +21,7 @@ export function useSearch() {
   ) => {
     if (!searchQuery.trim()) return;
     if (!selectedContainer && !selectedDockerImage) {
-      alert('请先选择一个容器或 Docker 镜像');
+      toast('请先选择一个容器或 Docker 镜像', 'warning');
       return;
     }
 
@@ -37,7 +40,7 @@ export function useSearch() {
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, toast]);
 
   const navigateToSearchResult = useCallback((
     path: string,
@@ -63,7 +66,7 @@ export function useSearch() {
   return {
     showSearchModal, setShowSearchModal,
     searchQuery, setSearchQuery,
-    searchResults, isSearching,
+    searchResults, setSearchResults, isSearching,
     performSearch, navigateToSearchResult,
   };
 }

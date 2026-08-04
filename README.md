@@ -71,28 +71,19 @@ npm install
 
 ### 开发模式
 
-#### 运行 Electron 应用（推荐）
-```bash
-npm run electron:dev
-```
-
-#### 仅运行 Web 开发服务器
 ```bash
 npm run dev
 ```
 
+此命令会启动 Vite 开发服务器并自动打开 Electron 应用。
+
 ### 构建应用
 
-#### 构建 Web 应用
-```bash
-npm run build
-```
-
-#### 构建 Electron 应用
 ```bash
 npm run electron:build
 ```
-构建完成后，可执行文件位于 `dist-electron/mac-arm64/` 目录下。
+
+此命令会构建 Web 应用和 Electron 代码,并打包生成可执行文件。构建完成后,可执行文件位于 `release/` 目录下。
 
 ### 运行测试
 

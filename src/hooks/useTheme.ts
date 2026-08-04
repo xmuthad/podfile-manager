@@ -1,22 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+type Theme = 'light' | 'dark';
+const STORAGE_KEY = 'podfile-theme';
+
+function getInitialTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    if (saved === 'light' || saved === 'dark') {
+      return saved;
+    }
+  } catch {
+    // localStorage 在某些环境下不可用
+  }
+  return 'light';
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
 
 export function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('podfile-theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    }
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
-  function toggleTheme() {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('podfile-theme', newTheme);
-  }
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next: Theme = prev === 'light' ? 'dark' : 'light';
+      try {
+        localStorage.setItem(STORAGE_KEY, next);
+      } catch {
+        // 忽略存储错误
+      }
+      return next;
+    });
+  }, []);
 
   return { theme, toggleTheme };
 }

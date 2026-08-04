@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 dist-electron/
+release/
 *.exe
 *.dmg
 *.AppImage
@@ -24,6 +25,7 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+.qoder/
 *.swp
 *.swo
 .trae/
@@ -37,6 +39,12 @@ Thumbs.db
 coverage/
 playwright-report/
 test-results/
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint
+.eslintcache
 
 # Misc
 *.tgz

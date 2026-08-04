@@ -1,0 +1,22 @@
+interface FileViewerModalProps {
+  show: boolean;
+  content: string;
+  onClose: () => void;
+}
+
+export function FileViewerModal({ show, content, onClose }: FileViewerModalProps) {
+  if (!show) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>📄 文件内容</h3>
+          <button className="btn btn-small" onClick={onClose}>✕ 关闭</button>
+        </div>
+        <div className="modal-content">
+          <pre>{content}</pre>
+        </div>
+      </div>
+    </div>
+  );
+}

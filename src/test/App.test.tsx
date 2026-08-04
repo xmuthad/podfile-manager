@@ -3,6 +3,35 @@ import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 
+window.electronAPI = {
+  getNamespaces: vi.fn(),
+  getPods: vi.fn(),
+  getContainers: vi.fn(),
+  listFiles: vi.fn(),
+  listDockerImages: vi.fn().mockResolvedValue([]),
+  listDockerFiles: vi.fn().mockResolvedValue(''),
+  downloadFromDocker: vi.fn().mockResolvedValue({ success: true, path: '' }),
+  readDockerFile: vi.fn().mockResolvedValue(''),
+  writeDockerFile: vi.fn().mockResolvedValue({ success: true, path: '' }),
+  batchDownloadDocker: vi.fn().mockResolvedValue({ success: true, path: '', type: 'tar' }),
+  getDockerDirectoryTree: vi.fn().mockResolvedValue([]),
+  searchDockerFiles: vi.fn().mockResolvedValue([]),
+  execDockerCommand: vi.fn().mockResolvedValue({ output: '', stderr: '', exitCode: 0 }),
+  downloadFile: vi.fn().mockResolvedValue(null),
+  downloadFileWithLimit: vi.fn().mockResolvedValue(null),
+  uploadFile: vi.fn().mockResolvedValue(null),
+  readFile: vi.fn().mockResolvedValue(''),
+  writeFile: vi.fn().mockResolvedValue({ success: true, path: '' }),
+  batchDownload: vi.fn().mockResolvedValue({ success: true, path: '', type: 'tar' }),
+  getDirectoryTree: vi.fn().mockResolvedValue([]),
+  searchFiles: vi.fn().mockResolvedValue([]),
+  execCommand: vi.fn().mockResolvedValue({ output: '', stderr: '', exitCode: 0 }),
+  onTerminalOutput: vi.fn(() => () => {}),
+  onTransferProgress: vi.fn(() => () => {}),
+  getContexts: vi.fn().mockResolvedValue({ contexts: [], currentContext: '' }),
+  useContext: vi.fn().mockResolvedValue({ success: true, context: '' }),
+} as any;
+
 const mockNamespaces = {
   items: [
     { metadata: { name: 'default' } },
@@ -498,7 +527,7 @@ describe('App Component', () => {
       window.electronAPI.getNamespaces = vi.fn().mockResolvedValue(mockNamespaces);
       window.electronAPI.getPods = vi.fn().mockResolvedValue(mockPods);
       window.electronAPI.getContainers = vi.fn().mockResolvedValue(mockContainers);
-      window.electronAPI.listFiles = vi.fn().mockResolvedValue('total 8\ndrwxr-xr-x  2 root root 40966 Jan  1 00:00 app\n-rw-r--r--  1 root root  1024 Jan  1 00:00 config.yaml');
+      window.electronAPI.listFiles = vi.fn().mockResolvedValue('drwxr-xr-x|2|root|root|40966|Jan|1|00:00|app\n-rw-r--r--|1|root|root|1024|Jan|1|00:00|config.yaml');
 
       await act(async () => {
         render(<App />);

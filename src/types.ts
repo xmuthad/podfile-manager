@@ -1,3 +1,5 @@
+import type { TransferProgress as SharedTransferProgress, TerminalOutput, ElectronAPI as SharedElectronAPI } from '../electron/types';
+
 export interface Namespace {
   metadata: {
     name: string;
@@ -48,58 +50,63 @@ export interface DockerImage {
   size: string;
 }
 
-export interface FileItem {
+export interface ParsedFileItem {
   name: string;
   permissions: string;
   owner: string;
   group: string;
   size: string;
-  date: string;
+  month: string;
+  day: string;
   time: string;
   isDirectory: boolean;
+  filePath: string;
 }
 
-export interface TransferProgress {
-  status: 'downloading' | 'uploading' | 'completed' | 'error';
-  transferred: number;
-  total: number;
-  percent?: number;
-  speed?: string;
-  message?: string;
+/**
+ * 解析后端 list-files 返回的文件行。
+ * 格式：<perms>|<links>|<owner>|<group>|<size>|<month>|<day>|<time-or-year>|<name>
+ * 用 '|' 分隔，前 8 段固定，剩余是文件名（支持含 '|' 的文件名）。
+ */
+export function parseFileLine(line: string): Omit<ParsedFileItem, 'filePath'> | null {
+  if (!line || !line.trim()) return null;
+  const trimmed = line.trim();
+
+  const parts = trimmed.split('|');
+  if (parts.length < 9) return null;
+  return {
+    permissions: parts[0],
+    owner: parts[2],
+    group: parts[3],
+    size: parts[4],
+    month: parts[5],
+    day: parts[6],
+    time: parts[7],
+    name: parts.slice(8).join('|').trim(),
+    isDirectory: parts[0].startsWith('d'),
+  };
 }
+
+/** 批量解析文件行并预计算 filePath，返回 ParsedFileItem[] */
+export function parseFileLines(text: string, basePath: string): ParsedFileItem[] {
+  return text.split('\n')
+    .map(line => {
+      const parsed = parseFileLine(line);
+      if (!parsed) return null;
+      const filePath = basePath.endsWith('/') ? `${basePath}${parsed.name}` : `${basePath}/${parsed.name}`;
+      return { ...parsed, filePath };
+    })
+    .filter((item): item is ParsedFileItem => item !== null);
+}
+
+// 重新导出共享类型，保持外部 `import { TransferProgress, ElectronAPI } from '../types'` 兼容。
+export type TransferProgress = SharedTransferProgress;
+export type { TerminalOutput };
+export type ElectronAPI = SharedElectronAPI;
 
 export interface DownloadOption {
   method: 'kubectl-cp' | 'dd-limit';
   speed?: number;
-}
-
-export interface ElectronAPI {
-  getNamespaces: () => Promise<{ items: Namespace[] }>;
-  getPods: (namespace: string) => Promise<{ items: Pod[] }>;
-  getContainers: (namespace: string, pod: string) => Promise<{ items: Container[] }>;
-  listFiles: (namespace: string, pod: string, container: string, path: string) => Promise<string>;
-  downloadFile: (namespace: string, pod: string, container: string, remotePath: string) => Promise<string | null>;
-  downloadFileWithLimit: (namespace: string, pod: string, container: string, remotePath: string, limitSpeed: number) => Promise<{ success: boolean; path: string; method: string; speed: number } | null>;
-  uploadFile: (namespace: string, pod: string, container: string, remotePath: string) => Promise<string | null>;
-  readFile: (namespace: string, pod: string, container: string, remotePath: string) => Promise<string>;
-  writeFile: (namespace: string, pod: string, container: string, remotePath: string, content: string) => Promise<{ success: boolean; path: string }>;
-  batchDownload: (namespace: string, pod: string, container: string, filePaths: string[], downloadDir: string) => Promise<{ success: boolean; path: string; type: string }>;
-  getDirectoryTree: (namespace: string, pod: string, container: string, dirPath: string) => Promise<string[]>;
-  searchFiles: (namespace: string, pod: string, container: string, dirPath: string, pattern: string) => Promise<string[]>;
-  execCommand: (namespace: string, pod: string, container: string, command: string) => Promise<{ output: string; stderr: string; exitCode: number }>;
-  getContexts: () => Promise<{ contexts: { name: string; cluster: string }[]; currentContext: string }>;
-  useContext: (contextName: string) => Promise<{ success: boolean; context: string }>;
-  onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void;
-  onTerminalOutput: (callback: (data: { output: string; type: string }) => void) => () => void;
-  listDockerImages: () => Promise<DockerImage[]>;
-  listDockerFiles: (imageName: string, path: string) => Promise<string>;
-  downloadFromDocker: (imageName: string, filePath: string) => Promise<{ success: boolean; path: string } | null>;
-  readDockerFile: (imageName: string, filePath: string) => Promise<string>;
-  writeDockerFile: (imageName: string, filePath: string, content: string) => Promise<{ success: boolean; path: string }>;
-  batchDownloadDocker: (imageName: string, filePaths: string[], downloadDir: string) => Promise<{ success: boolean; path: string; type: string }>;
-  getDockerDirectoryTree: (imageName: string, dirPath: string) => Promise<string[]>;
-  searchDockerFiles: (imageName: string, dirPath: string, pattern: string) => Promise<string[]>;
-  execDockerCommand: (imageName: string, command: string) => Promise<{ output: string; stderr: string; exitCode: number }>;
 }
 
 declare global {
