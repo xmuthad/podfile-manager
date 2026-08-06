@@ -15,6 +15,29 @@ const fsAsync = fs.promises;
 
 const EXEC_COMMAND_TIMEOUT_MS = 60_000;
 
+/**
+ * 修复打包后 Electron 应用找不到 kubectl / docker 的问题。
+ * 打包后的 Electron 不继承用户 shell 的 PATH，需要手动从登录 shell 获取。
+ */
+async function fixPath(): Promise<void> {
+  if (process.platform === 'win32') return; // Windows 不受此问题影响
+
+  try {
+    const shell = process.env.SHELL || '/bin/zsh';
+    const { stdout } = await execAsync(`${shell} -ilc 'echo $PATH'`, { timeout: 10_000 });
+    const shellPath = stdout.trim();
+    if (shellPath) {
+      process.env.PATH = shellPath;
+    }
+  } catch {
+    // 获取失败时追加常见安装路径，保证基本可用
+    const extra = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/local/sbin', path.join(os.homedir(), '.local', 'bin')];
+    process.env.PATH = [...extra, process.env.PATH ?? ''].filter(Boolean).join(':');
+  }
+}
+
+await fixPath();
+
 function assertNonEmptyString(value: unknown, name: string): asserts value is string {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error(`参数 "${name}" 不能为空`);
