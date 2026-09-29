@@ -5,4 +5,5 @@ export { useK8s } from './useK8s';
 export { useDocker } from './useDocker';
 export { useSearch } from './useSearch';
 export { useToast } from './useToast';
+export { useEscapeKey } from './useEscapeKey';
 export type { ToastType } from './useToast';

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { ParsedFileItem } from '../types';
+import { IconFolder, IconFile, IconEye, IconEdit, IconDownload } from './icons';
 
 interface FileListProps {
   files: ParsedFileItem[];
@@ -39,7 +40,7 @@ const FileRow = memo(function FileRow({
         />
       )}
       <div className="file-icon" onClick={() => onNavigate(file)}>
-        {isDir ? '📁' : '📄'}
+        {isDir ? <IconFolder size={16} /> : <IconFile size={16} />}
       </div>
       <div className="file-info" onClick={() => onNavigate(file)}>
         <div className="file-name">{file.name}</div>
@@ -50,9 +51,9 @@ const FileRow = memo(function FileRow({
       <div className="file-actions">
         {!isDir && (
           <>
-            <button className="btn btn-small" onClick={() => onView(file)} disabled={isTransferring}>👁️ 查看</button>
-            <button className="btn btn-small" onClick={() => onEdit(file)} disabled={isTransferring}>✏️ 编辑</button>
-            <button className="btn btn-small btn-primary" onClick={() => onDownload(file)} disabled={isTransferring}>⬇️ 下载</button>
+            <button className="btn btn-small" onClick={() => onView(file)} disabled={isTransferring}><IconEye size={12} /> 查看</button>
+            <button className="btn btn-small" onClick={() => onEdit(file)} disabled={isTransferring}><IconEdit size={12} /> 编辑</button>
+            <button className="btn btn-small btn-primary" onClick={() => onDownload(file)} disabled={isTransferring}><IconDownload size={12} /> 下载</button>
           </>
         )}
       </div>

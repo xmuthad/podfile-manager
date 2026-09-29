@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { TransferProgress } from '../types';
 import { formatBytes } from '../utils';
+import { IconUpload, IconDownload, IconCheck, IconAlert } from './icons';
 
 interface TransferProgressBarProps {
   transferProgress: TransferProgress;
@@ -8,22 +9,26 @@ interface TransferProgressBarProps {
 }
 
 export const TransferProgressBar = memo(function TransferProgressBar({ transferProgress, mode }: TransferProgressBarProps) {
-  const statusText = (() => {
-    if (mode === 'k8s') {
-      if (transferProgress.status === 'uploading') return '⬆️ 正在上传';
-      if (transferProgress.status === 'downloading') return '⬇️ 正在下载';
-    } else {
-      if (transferProgress.status === 'downloading') return '⬇️ 正在下载';
+  const statusNode = (() => {
+    if (mode === 'k8s' && transferProgress.status === 'uploading') {
+      return <><IconUpload size={14} /> 正在上传</>;
     }
-    if (transferProgress.status === 'completed') return '✅ 传输完成';
-    if (transferProgress.status === 'error') return '❌ 传输失败';
-    return '';
+    if (transferProgress.status === 'downloading') {
+      return <><IconDownload size={14} /> 正在下载</>;
+    }
+    if (transferProgress.status === 'completed') {
+      return <><IconCheck size={14} /> 传输完成</>;
+    }
+    if (transferProgress.status === 'error') {
+      return <><IconAlert size={14} /> 传输失败</>;
+    }
+    return null;
   })();
 
   return (
     <div className="transfer-progress">
       <div className="transfer-info">
-        <div className="transfer-status">{statusText}</div>
+        <div className="transfer-status">{statusNode}</div>
         <div className="transfer-details">
           {transferProgress.status !== 'error' && transferProgress.status !== 'completed' && (
             <>

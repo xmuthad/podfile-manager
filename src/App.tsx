@@ -7,6 +7,11 @@ import { ToastContainer } from './components/ToastContainer';
 import { Sidebar } from './components/Sidebar';
 import { FileList } from './components/FileList';
 import { TransferProgressBar } from './components/TransferProgressBar';
+import {
+  IconLogo, IconSun, IconMoon, IconSearch, IconTerminal,
+  IconRefresh, IconDownload, IconUpload, IconPackage, IconFolder,
+  IconImage, IconBox, IconChevronUp,
+} from './components/icons';
 import './App.css';
 
 const FileViewerModal = lazy(() => import('./components/FileViewerModal').then(m => ({ default: m.FileViewerModal })));
@@ -22,9 +27,14 @@ function AppHeader() {
   return (
     <header className="header">
       <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-        <div>
-          <h1>🚀 PodFile Manager</h1>
-          <p>Kubernetes 集群 Pod 文件管理工具</p>
+        <div className="brand">
+          <span className="brand-logo">
+            <IconLogo size={22} />
+          </span>
+          <div className="brand-text">
+            <h1>PodFile Manager</h1>
+            <p>Kubernetes 集群 Pod 文件管理工具</p>
+          </div>
         </div>
         {app.k8s.clusterConfigs.length > 0 && (
           <div className="cluster-selector">
@@ -42,22 +52,30 @@ function AppHeader() {
           </div>
         )}
         <div className="header-actions">
-          <button className="theme-toggle" onClick={app.toggleTheme} title="切换主题">
-            {app.theme === 'light' ? '🌙' : '☀️'}
+          <button
+            className="theme-toggle"
+            onClick={app.toggleTheme}
+            title="切换主题"
+            aria-label="切换主题"
+          >
+            {app.theme === 'light' ? <IconMoon size={16} /> : <IconSun size={16} />}
           </button>
           <button
             className="theme-toggle"
             onClick={() => app.setShowSearchModal(true)}
             title="搜索文件"
+            aria-label="搜索文件"
           >
-            🔍
+            <IconSearch size={16} />
           </button>
           <button
             className="theme-toggle"
             onClick={() => terminal.setShowTerminal(!terminal.showTerminal)}
             title="终端"
+            aria-label="终端"
+            aria-pressed={terminal.showTerminal}
           >
-            💻
+            <IconTerminal size={16} />
           </button>
         </div>
       </div>
@@ -81,7 +99,7 @@ function K8sFileBrowser() {
     <>
       <div className="toolbar">
         <div className="toolbar-info">
-          <span className="toolbar-icon">📂</span>
+          <span className="toolbar-icon"><IconFolder size={16} /></span>
           <span className="toolbar-path">{app.k8s.currentPath}</span>
         </div>
         {app.k8s.selectedFiles.size > 0 && (
@@ -90,7 +108,7 @@ function K8sFileBrowser() {
             onClick={() => app.k8s.setShowBatchDownloadDialog(true)}
             disabled={transfer.isTransferring}
           >
-            📦 批量下载 ({app.k8s.selectedFiles.size})
+            <IconPackage size={14} /> 批量下载 ({app.k8s.selectedFiles.size})
           </button>
         )}
         <button
@@ -98,21 +116,21 @@ function K8sFileBrowser() {
           onClick={() => app.k8s.loadFiles(app.k8s.selectedPod, app.k8s.selectedContainer, app.k8s.currentPath)}
           disabled={transfer.isTransferring}
         >
-          🔄 刷新
+          <IconRefresh size={14} /> 刷新
         </button>
         <button
           className="btn btn-primary"
           onClick={app.onDownloadDirectory}
           disabled={transfer.isTransferring}
         >
-          📁 下载目录
+          <IconDownload size={14} /> 下载目录
         </button>
         <button
           className="btn btn-success"
           onClick={app.onUploadFile}
           disabled={transfer.isTransferring}
         >
-          ⬆️ 上传
+          <IconUpload size={14} /> 上传
         </button>
       </div>
 
@@ -154,7 +172,7 @@ function DockerFileBrowser() {
     <div className="docker-browser">
       <div className="toolbar">
         <div className="toolbar-info">
-          <span className="toolbar-icon">🐳</span>
+          <span className="toolbar-icon"><IconImage size={16} /></span>
           <span className="toolbar-path">{app.docker.dockerFilePath}</span>
         </div>
         {app.docker.selectedDockerImage && (
@@ -165,7 +183,7 @@ function DockerFileBrowser() {
                 onClick={() => app.docker.setDockerShowBatchDownloadDialog(true)}
                 disabled={transfer.isTransferring || app.docker.loadingDockerFiles}
               >
-                📦 批量下载 ({app.docker.dockerSelectedFiles.size})
+                <IconPackage size={14} /> 批量下载 ({app.docker.dockerSelectedFiles.size})
               </button>
             )}
             <button
@@ -173,14 +191,14 @@ function DockerFileBrowser() {
               onClick={() => app.docker.loadDockerFiles(app.docker.selectedDockerImage, app.docker.dockerFilePath)}
               disabled={transfer.isTransferring || app.docker.loadingDockerFiles}
             >
-              🔄 刷新
+              <IconRefresh size={14} /> 刷新
             </button>
             <button
               className="btn btn-primary"
               onClick={app.onDownloadDockerDirectory}
               disabled={transfer.isTransferring || app.docker.loadingDockerFiles}
             >
-              📁 下载目录
+              <IconDownload size={14} /> 下载目录
             </button>
             <button
               className="btn btn-success"
@@ -190,7 +208,7 @@ function DockerFileBrowser() {
               }}
               disabled={transfer.isTransferring || app.docker.loadingDockerFiles}
             >
-              ⬆️ 返回上级
+              <IconChevronUp size={14} /> 返回上级
             </button>
           </>
         )}
@@ -214,7 +232,7 @@ function DockerFileBrowser() {
 
       {!app.docker.selectedDockerImage && (
         <div className="empty-state">
-          <div className="empty-state-icon">🐳</div>
+          <div className="empty-state-icon"><IconImage size={40} /></div>
           <h2>从 Docker 镜像下载文件</h2>
           <p>从左侧选择 Docker 镜像，即可浏览镜像内的文件目录</p>
         </div>
@@ -235,7 +253,7 @@ function DockerFileBrowser() {
 
       {app.docker.selectedDockerImage && app.docker.dockerFiles.length === 0 && !app.docker.loadingDockerFiles && !app.docker.dockerError && (
         <div className="empty-state">
-          <div className="empty-state-icon">📂</div>
+          <div className="empty-state-icon"><IconFolder size={40} /></div>
           <p>该目录下没有文件</p>
         </div>
       )}
@@ -248,7 +266,7 @@ function EmptyState() {
   if (app.activeTab !== 'k8s' || app.k8s.selectedContainer) return null;
   return (
     <div className="empty-state">
-      <div className="empty-state-icon">☁️</div>
+      <div className="empty-state-icon"><IconBox size={40} /></div>
       <h2>开始管理您的 Kubernetes 文件</h2>
       <p>从左侧导航树中选择一个容器来开始浏览和管理 Pod 中的文件</p>
     </div>
@@ -308,7 +326,7 @@ function AppContent() {
 
         <BatchDownloadDialog
           show={app.k8s.showBatchDownloadDialog}
-          title="📦 批量下载"
+          title="批量下载"
           selectedFiles={app.k8s.selectedFiles}
           onConfirm={app.onConfirmBatchDownload}
           onClose={() => app.k8s.setShowBatchDownloadDialog(false)}
@@ -316,7 +334,7 @@ function AppContent() {
 
         <FileEditorModal
           show={app.k8s.isEditMode}
-          title="✏️ 编辑文件"
+          title="编辑文件"
           filePath={app.k8s.editFilePath}
           content={app.k8s.editFileContent}
           loading={app.k8s.loading}
@@ -327,7 +345,7 @@ function AppContent() {
 
         <BatchDownloadDialog
           show={app.docker.dockerShowBatchDownloadDialog}
-          title="📦 Docker 批量下载"
+          title="Docker 批量下载"
           selectedFiles={app.docker.dockerSelectedFiles}
           onConfirm={app.onConfirmDockerBatchDownload}
           onClose={() => app.docker.setDockerShowBatchDownloadDialog(false)}
@@ -335,7 +353,7 @@ function AppContent() {
 
         <FileEditorModal
           show={app.docker.dockerEditMode}
-          title="✏️ 编辑 Docker 镜像文件"
+          title="编辑 Docker 镜像文件"
           filePath={app.docker.dockerEditFilePath}
           content={app.docker.dockerEditFileContent}
           loading={app.docker.dockerLoading}

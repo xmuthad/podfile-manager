@@ -1,11 +1,12 @@
 import { memo } from 'react';
 import type { Toast, ToastType } from '../hooks/useToast';
+import { IconCheck, IconX, IconAlert, IconInfo } from './icons';
 
-const ICONS: Record<ToastType, string> = {
-  success: '\u2713',
-  error: '\u2717',
-  warning: '\u26A0',
-  info: '\u2139'
+const ICONS: Record<ToastType, typeof IconCheck> = {
+  success: IconCheck,
+  error: IconX,
+  warning: IconAlert,
+  info: IconInfo,
 };
 
 interface ToastContainerProps {
@@ -18,12 +19,15 @@ export const ToastContainer = memo(function ToastContainer({ toasts, onRemove }:
 
   return (
     <div className="toast-container">
-      {toasts.map(t => (
-        <div key={t.id} className={`toast toast-${t.type}`} onClick={() => onRemove(t.id)}>
-          <span className="toast-icon">{ICONS[t.type]}</span>
-          <span className="toast-message">{t.message}</span>
-        </div>
-      ))}
+      {toasts.map(t => {
+        const Icon = ICONS[t.type];
+        return (
+          <div key={t.id} className={`toast toast-${t.type}`} onClick={() => onRemove(t.id)}>
+            <span className="toast-icon"><Icon size={14} /></span>
+            <span className="toast-message">{t.message}</span>
+          </div>
+        );
+      })}
     </div>
   );
 });

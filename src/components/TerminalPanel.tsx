@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { IconTerminal, IconX } from './icons';
 
 interface TerminalPanelProps {
   show: boolean;
@@ -14,8 +15,10 @@ export const TerminalPanel = memo(function TerminalPanel({ show, output, input, 
   return (
     <div className="terminal-container">
       <div className="terminal-header">
-        <h3>💻 终端</h3>
-        <button className="btn btn-small" onClick={onClose}>✕</button>
+        <h3><IconTerminal size={14} /> 终端</h3>
+        <button className="btn btn-small" onClick={onClose} aria-label="关闭终端">
+          <IconX size={12} />
+        </button>
       </div>
       <div className="terminal-output">
         <pre>{output || '$ Ready...\n'}</pre>

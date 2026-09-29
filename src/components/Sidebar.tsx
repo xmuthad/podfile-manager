@@ -2,6 +2,10 @@ import { memo } from 'react';
 import type { Container, Pod, DockerImage } from '../types';
 import { getPodPhaseColor, getContainerStatusColor } from '../utils';
 import { useApp } from '../contexts/useApp';
+import {
+  IconBox, IconImage, IconAlert, IconRefresh, IconX,
+  IconChevronRight, IconChevronDown,
+} from './icons';
 
 interface K8sTreeProps {
   loading: boolean;
@@ -27,7 +31,7 @@ const K8sTree = memo(function K8sTree({
   return (
     <>
       <div className="sidebar-header">
-        <h3>🔍 集群导航</h3>
+        <h3><IconBox size={12} /> 集群导航</h3>
       </div>
       <div className="tree-view">
         {loading && namespaces.length === 0 && (
@@ -38,7 +42,7 @@ const K8sTree = memo(function K8sTree({
         )}
         {error && (
           <div className="error">
-            <span className="error-icon">⚠️</span>
+            <span className="error-icon"><IconAlert size={14} /></span>
             {error}
           </div>
         )}
@@ -49,9 +53,9 @@ const K8sTree = memo(function K8sTree({
               onClick={() => onToggleNamespace(namespace)}
             >
               <span className="tree-arrow">
-                {expandedNamespaces.has(namespace) ? '▼' : '▶'}
+                {expandedNamespaces.has(namespace) ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
               </span>
-              <span className="tree-icon">📦</span>
+              <span className="tree-icon"><IconBox size={14} /></span>
               <span className="tree-label">{namespace}</span>
               {expandedNamespaces.has(namespace) && pods.length > 0 && (
                 <span className="tree-count">{pods.length}</span>
@@ -66,7 +70,7 @@ const K8sTree = memo(function K8sTree({
                       onClick={() => onTogglePod(pod.metadata.name)}
                     >
                       <span className="tree-arrow">
-                        {expandedPods.has(pod.metadata.name) ? '▼' : '▶'}
+                        {expandedPods.has(pod.metadata.name) ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
                       </span>
                       <span
                         className="pod-status-dot"
@@ -85,7 +89,7 @@ const K8sTree = memo(function K8sTree({
                             className={`tree-item-header container-header ${selectedContainer === container.name ? 'selected' : ''}`}
                             onClick={() => onSelectContainer(container.name)}
                           >
-                            <span className="tree-arrow invisible">▶</span>
+                            <span className="tree-arrow invisible"><IconChevronRight size={12} /></span>
                             <span
                               className="container-status-bar"
                               style={{ backgroundColor: getContainerStatusColor(container) }}
@@ -127,18 +131,18 @@ const DockerPanel = memo(function DockerPanel({
   return (
     <div className="docker-panel">
       <div className="sidebar-header">
-        <h3>🐳 Docker 镜像</h3>
+        <h3><IconImage size={12} /> Docker 镜像</h3>
       </div>
       <div className="docker-search">
         <input
           type="text"
-          placeholder="🔍 搜索镜像..."
+          placeholder="搜索镜像..."
           value={dockerSearchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
         />
         {dockerSearchTerm && (
-          <button className="search-clear" onClick={() => onSearchTermChange('')}>
-            ✕
+          <button className="search-clear" onClick={() => onSearchTermChange('')} aria-label="清除搜索">
+            <IconX size={12} />
           </button>
         )}
       </div>
@@ -153,7 +157,7 @@ const DockerPanel = memo(function DockerPanel({
           <div className="tree-empty">
             <p>暂无可用镜像</p>
             <button className="btn btn-small" onClick={onRefresh}>
-              🔄 刷新
+              <IconRefresh size={12} /> 刷新
             </button>
           </div>
         )}
@@ -170,7 +174,7 @@ const DockerPanel = memo(function DockerPanel({
               onClick={() => onSelectImage(`${image.repository}:${image.tag}`)}
               title={`${image.repository}:${image.tag} (${image.size})`}
             >
-              <div className="docker-image-icon">🐳</div>
+              <div className="docker-image-icon"><IconImage size={16} /></div>
               <div className="docker-image-info">
                 <div className="docker-image-name" title={image.repository}>{image.repository}</div>
                 <div className="docker-image-tag" title={image.tag}>{image.tag}</div>
@@ -193,13 +197,13 @@ export function Sidebar() {
           className={`sidebar-tab ${app.activeTab === 'k8s' ? 'active' : ''}`}
           onClick={() => app.handleTabChange('k8s')}
         >
-          ☸️ Kubernetes
+          <IconBox size={14} /> Kubernetes
         </button>
         <button
           className={`sidebar-tab ${app.activeTab === 'docker' ? 'active' : ''}`}
           onClick={() => app.handleTabChange('docker')}
         >
-          🐳 Docker
+          <IconImage size={14} /> Docker
         </button>
       </div>
       {app.activeTab === 'k8s' && (

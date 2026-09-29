@@ -78,7 +78,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      expect(screen.getByText('🚀 PodFile Manager')).toBeInTheDocument();
+      expect(screen.getByText('PodFile Manager')).toBeInTheDocument();
     });
 
     it('renders the subtitle', async () => {
@@ -98,7 +98,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      const k8sTab = screen.getByText('☸️ Kubernetes');
+      const k8sTab = screen.getByText('Kubernetes');
       expect(k8sTab).toBeInTheDocument();
       expect(k8sTab.closest('button')).toHaveClass('active');
     });
@@ -110,7 +110,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      expect(screen.getByText('🐳 Docker')).toBeInTheDocument();
+      expect(screen.getByText('Docker')).toBeInTheDocument();
     });
 
     it('renders the sidebar header', async () => {
@@ -120,7 +120,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      expect(screen.getByText('🔍 集群导航')).toBeInTheDocument();
+      expect(screen.getByText('集群导航')).toBeInTheDocument();
     });
   });
 
@@ -166,8 +166,8 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      const namespaceHeaders = screen.getAllByText('📦');
-      expect(namespaceHeaders.length).toBe(2);
+      const namespaceIcons = document.querySelectorAll('.tree-icon');
+      expect(namespaceIcons.length).toBe(2);
     });
   });
 
@@ -303,11 +303,11 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      const dockerTab = screen.getByText('🐳 Docker');
+      const dockerTab = screen.getByText('Docker');
       await userEvent.click(dockerTab);
 
       await waitFor(() => {
-        expect(screen.getByText('🐳 Docker 镜像')).toBeInTheDocument();
+        expect(screen.getByText('Docker 镜像')).toBeInTheDocument();
       });
     });
 
@@ -320,16 +320,16 @@ describe('App Component', () => {
 
       await waitFor(() => screen.getByText('default'));
 
-      const dockerTab = screen.getByText('🐳 Docker');
+      const dockerTab = screen.getByText('Docker');
       await userEvent.click(dockerTab);
 
-      await waitFor(() => screen.getByText('🐳 Docker 镜像'));
+      await waitFor(() => screen.getByText('Docker 镜像'));
 
-      const k8sTab = screen.getByText('☸️ Kubernetes');
+      const k8sTab = screen.getByText('Kubernetes');
       await userEvent.click(k8sTab);
 
       await waitFor(() => {
-        expect(screen.getByText('🔍 集群导航')).toBeInTheDocument();
+        expect(screen.getByText('集群导航')).toBeInTheDocument();
       });
     });
 
@@ -341,7 +341,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      await userEvent.click(screen.getByText('🐳 Docker'));
+      await userEvent.click(screen.getByText('Docker'));
 
       await waitFor(() => {
         expect(screen.getByText('nginx')).toBeInTheDocument();
@@ -359,10 +359,10 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      await userEvent.click(screen.getByText('🐳 Docker'));
+      await userEvent.click(screen.getByText('Docker'));
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('🔍 搜索镜像...')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('搜索镜像...')).toBeInTheDocument();
       });
     });
 
@@ -374,11 +374,11 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      await userEvent.click(screen.getByText('🐳 Docker'));
+      await userEvent.click(screen.getByText('Docker'));
 
       await waitFor(() => screen.getByText('nginx'));
 
-      const searchInput = screen.getByPlaceholderText('🔍 搜索镜像...');
+      const searchInput = screen.getByPlaceholderText('搜索镜像...');
       await userEvent.type(searchInput, 'nginx');
 
       await waitFor(() => {
@@ -394,11 +394,11 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      await userEvent.click(screen.getByText('🐳 Docker'));
+      await userEvent.click(screen.getByText('Docker'));
 
       await waitFor(() => screen.getByText('nginx'));
 
-      const searchInput = screen.getByPlaceholderText('🔍 搜索镜像...');
+      const searchInput = screen.getByPlaceholderText('搜索镜像...');
       await userEvent.type(searchInput, 'nonexistent');
 
       await waitFor(() => {
@@ -428,7 +428,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      await userEvent.click(screen.getByText('🐳 Docker'));
+      await userEvent.click(screen.getByText('Docker'));
 
       await waitFor(() => {
         expect(screen.getByText('从 Docker 镜像下载文件')).toBeInTheDocument();
@@ -497,7 +497,7 @@ describe('App Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText('测试错误')).toBeInTheDocument();
-        expect(screen.getByText('⚠️')).toBeInTheDocument();
+        expect(document.querySelector('.error-icon')).toBeInTheDocument();
       });
     });
 
@@ -567,7 +567,7 @@ describe('App Component', () => {
       await userEvent.click(screen.getByText('nginx'));
 
       await waitFor(() => {
-        expect(screen.getByText('🔄 刷新')).toBeInTheDocument();
+        expect(screen.getByText('刷新')).toBeInTheDocument();
       });
     });
   });
@@ -592,7 +592,7 @@ describe('App Component', () => {
       await userEvent.click(screen.getByText('nginx'));
 
       await waitFor(() => {
-        expect(screen.getByText('🔄 刷新')).toBeInTheDocument();
+        expect(screen.getByText('刷新')).toBeInTheDocument();
       });
     });
   });
@@ -606,7 +606,7 @@ describe('App Component', () => {
         render(<App />);
       });
 
-      await userEvent.click(screen.getByText('🐳 Docker'));
+      await userEvent.click(screen.getByText('Docker'));
 
       await waitFor(() => screen.getByText('nginx'));
 
@@ -615,6 +615,46 @@ describe('App Component', () => {
       await waitFor(() => {
         expect(window.electronAPI.listDockerFiles).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('Interaction', () => {
+    it('closes search modal on Escape', async () => {
+      window.electronAPI.getNamespaces = vi.fn().mockImplementation(() => new Promise(() => {}));
+
+      await act(async () => {
+        render(<App />);
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: '搜索文件' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('文件搜索')).toBeInTheDocument();
+      });
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByText('文件搜索')).toBeNull();
+      });
+    });
+
+    it('toggles active class between sidebar tabs', async () => {
+      window.electronAPI.getNamespaces = vi.fn().mockImplementation(() => new Promise(() => {}));
+
+      await act(async () => {
+        render(<App />);
+      });
+
+      const k8sTab = screen.getByText('Kubernetes').closest('button');
+      const dockerTab = screen.getByText('Docker').closest('button');
+      expect(k8sTab).toHaveClass('active');
+      expect(dockerTab).not.toHaveClass('active');
+
+      await userEvent.click(dockerTab as HTMLElement);
+
+      expect(dockerTab).toHaveClass('active');
+      expect(k8sTab).not.toHaveClass('active');
     });
   });
 });

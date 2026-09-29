@@ -1,3 +1,6 @@
+import { useEscapeKey } from '../hooks/useEscapeKey';
+import { IconSearch, IconX, IconFile } from './icons';
+
 interface SearchModalProps {
   show: boolean;
   searchQuery: string;
@@ -13,13 +16,16 @@ export function SearchModal({
   show, searchQuery, isSearching, searchResults,
   onQueryChange, onSearch, onResultClick, onClose,
 }: SearchModalProps) {
+  useEscapeKey(show, onClose);
   if (!show) return null;
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>🔍 文件搜索</h3>
-          <button className="btn btn-small" onClick={onClose}>✕</button>
+          <h3><IconSearch size={14} /> 文件搜索</h3>
+          <button className="btn btn-small" onClick={onClose} aria-label="关闭">
+            <IconX size={12} />
+          </button>
         </div>
         <div className="modal-content">
           <div className="search-input-container">
@@ -28,6 +34,7 @@ export function SearchModal({
               className="search-input"
               placeholder="输入文件名搜索..."
               value={searchQuery}
+              autoFocus
               onChange={(e) => onQueryChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onSearch()}
             />
@@ -42,7 +49,7 @@ export function SearchModal({
                   className="search-result-item"
                   onClick={() => onResultClick(result)}
                 >
-                  📄 {result}
+                  <IconFile size={12} /> {result}
                 </div>
               ))}
             </div>
