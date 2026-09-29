@@ -22,7 +22,7 @@ describe('useK8s Hook', () => {
   });
 
   describe('Initial State', () => {
-    it('should initialize with empty arrays', () => {
+    it('should initialize with empty arrays', async () => {
       window.electronAPI = {
         getContexts: vi.fn().mockResolvedValue({ contexts: [], currentContext: '' }),
         getNamespaces: vi.fn().mockResolvedValue({ items: [] }),
@@ -34,9 +34,15 @@ describe('useK8s Hook', () => {
       expect(result.current.pods).toEqual([]);
       expect(result.current.containers).toEqual([]);
       expect(result.current.files).toEqual([]);
+
+      // 等待 mount 时的 getContexts / loadNamespaces 副作用落定，
+      // 否则异步 setState 会在用例结束后触发 act(...) 警告
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
-    it('should initialize with empty selections', () => {
+    it('should initialize with empty selections', async () => {
       window.electronAPI = {
         getContexts: vi.fn().mockResolvedValue({ contexts: [], currentContext: '' }),
         getNamespaces: vi.fn().mockResolvedValue({ items: [] }),
@@ -48,6 +54,11 @@ describe('useK8s Hook', () => {
       expect(result.current.selectedPod).toBe('');
       expect(result.current.selectedContainer).toBe('');
       expect(result.current.currentPath).toBe('/');
+
+      // 同上：等待 mount 副作用完成，避免遗留的异步更新逸出 act(...)
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('should initialize with default UI states', async () => {
