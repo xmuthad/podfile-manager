@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
   // kubectl
   KUBECTL_GET_NAMESPACES: 'kubectl:get-namespaces',
   KUBECTL_GET_PODS: 'kubectl:get-pods',
+  KUBECTL_GET_ALL_PODS: 'kubectl:get-all-pods',
   KUBECTL_GET_CONTAINERS: 'kubectl:get-containers',
   KUBECTL_LIST_FILES: 'kubectl:list-files',
   KUBECTL_DOWNLOAD_FILE: 'kubectl:download-file',
@@ -111,6 +112,7 @@ export type ElectronAPI = {
   // kubectl
   getNamespaces: () => Promise<{ items: Array<{ metadata: { name: string } }> }>;
   getPods: (namespace: string) => Promise<{ items: Array<{ metadata: { name: string; namespace: string }; status: { phase: string; podIP: string } }> }>;
+  getAllPods: (searchTerm: string) => Promise<{ items: Array<{ metadata: { name: string; namespace: string }; status: { phase: string; podIP: string } }> }>;
   getContainers: (namespace: string, pod: string) => Promise<{ items: ContainerInfo[] }>;
   listFiles: (namespace: string, pod: string, container: string | null, path: string) => Promise<string>;
   downloadFile: (namespace: string, pod: string, container: string | null, remotePath: string) => Promise<string | null>;

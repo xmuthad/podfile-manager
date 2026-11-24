@@ -58,12 +58,28 @@ export function useK8s(toast: ToastFn) {
     browser.setFiles([]);
   }, [nav, browser]);
 
+  // 从全局搜索结果选中 Pod：清空 browser 状态，并自动进入第一个容器的文件目录
+  const selectPodFromSearch = useCallback(async (namespace: string, podName: string) => {
+    const firstContainer = await nav.selectPodFromSearch(namespace, podName);
+    browser.setCurrentPath('/');
+    browser.setFiles([]);
+    if (firstContainer) {
+      nav.setSelectedContainer(firstContainer);
+      browser.loadFiles(podName, firstContainer, '/', namespace);
+    }
+  }, [nav, browser]);
+
   return useMemo(() => ({
     // nav
     namespaces: nav.namespaces,
     selectedNamespace: nav.selectedNamespace,
     setSelectedNamespace: nav.setSelectedNamespace,
     pods: nav.pods,
+    podSearchTerm: nav.podSearchTerm,
+    setPodSearchTerm: nav.setPodSearchTerm,
+    globalPodResults: nav.globalPodResults,
+    searchingPods: nav.searchingPods,
+    selectPodFromSearch,
     selectedPod: nav.selectedPod,
     setSelectedPod: nav.setSelectedPod,
     containers: nav.containers,
@@ -114,5 +130,5 @@ export function useK8s(toast: ToastFn) {
     toggleNamespace,
     togglePod,
     selectContainer,
-  }), [nav, browser, actions, toggleNamespace, togglePod, selectContainer]);
+  }), [nav, browser, actions, toggleNamespace, togglePod, selectContainer, selectPodFromSearch]);
 }

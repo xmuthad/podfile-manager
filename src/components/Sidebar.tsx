@@ -17,7 +17,12 @@ interface K8sTreeProps {
   expandedNamespaces: Set<string>;
   expandedPods: Set<string>;
   pods: Pod[];
+  podSearchTerm: string;
+  globalPodResults: Pod[];
+  searchingPods: boolean;
   containers: Container[];
+  onPodSearchTermChange: (term: string) => void;
+  onSelectPodFromSearch: (namespace: string, podName: string) => void;
   onToggleNamespace: (namespace: string) => void;
   onTogglePod: (pod: string) => void;
   onSelectContainer: (container: string) => void;
@@ -25,15 +30,68 @@ interface K8sTreeProps {
 
 const K8sTree = memo(function K8sTree({
   loading, error, namespaces, selectedNamespace, selectedPod, selectedContainer,
-  expandedNamespaces, expandedPods, pods, containers,
-  onToggleNamespace, onTogglePod, onSelectContainer,
+  expandedNamespaces, expandedPods, pods, podSearchTerm, globalPodResults, searchingPods, containers,
+  onPodSearchTermChange, onSelectPodFromSearch, onToggleNamespace, onTogglePod, onSelectContainer,
 }: K8sTreeProps) {
+  const searching = podSearchTerm.trim() !== '';
   return (
     <>
       <div className="sidebar-header">
         <h3><IconBox size={12} /> 集群导航</h3>
       </div>
+      {namespaces.length > 0 && (
+        <div className="sidebar-search">
+          <input
+            type="text"
+            placeholder="搜索所有命名空间的 Pod..."
+            value={podSearchTerm}
+            onChange={(e) => onPodSearchTermChange(e.target.value)}
+          />
+          {podSearchTerm && (
+            <button className="search-clear" onClick={() => onPodSearchTermChange('')} aria-label="清除搜索">
+              <IconX size={12} />
+            </button>
+          )}
+        </div>
+      )}
       <div className="tree-view">
+        {searching ? (
+          <>
+            {searchingPods && (
+              <div className="tree-loading">
+                <div className="loading-spinner"></div>
+                <span>搜索中...</span>
+              </div>
+            )}
+            {!searchingPods && globalPodResults.length === 0 && (
+              <div className="tree-empty">
+                <p>没有找到匹配的 Pod</p>
+              </div>
+            )}
+            {!searchingPods && globalPodResults.length > 0 && (
+              <div className="tree-children">
+                {globalPodResults.map(pod => (
+                  <div
+                    key={`${pod.metadata.namespace}/${pod.metadata.name}`}
+                    className={`pod-search-result ${selectedPod === pod.metadata.name && selectedNamespace === pod.metadata.namespace ? 'selected' : ''}`}
+                    onClick={() => onSelectPodFromSearch(pod.metadata.namespace, pod.metadata.name)}
+                  >
+                    <div className="pod-search-result-header">
+                      <span
+                        className="pod-status-dot"
+                        style={{ backgroundColor: getPodPhaseColor(pod.status.phase) }}
+                        title={pod.status.phase}
+                      ></span>
+                      <span className="pod-search-result-name">{pod.metadata.name}</span>
+                    </div>
+                    <span className="pod-search-namespace">{pod.metadata.namespace}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
         {loading && namespaces.length === 0 && (
           <div className="tree-loading">
             <div className="loading-spinner"></div>
@@ -107,6 +165,8 @@ const K8sTree = memo(function K8sTree({
             )}
           </div>
         ))}
+          </>
+        )}
       </div>
     </>
   );
@@ -133,7 +193,7 @@ const DockerPanel = memo(function DockerPanel({
       <div className="sidebar-header">
         <h3><IconImage size={12} /> Docker 镜像</h3>
       </div>
-      <div className="docker-search">
+      <div className="sidebar-search">
         <input
           type="text"
           placeholder="搜索镜像..."
@@ -217,7 +277,12 @@ export function Sidebar() {
           expandedNamespaces={app.k8s.expandedNamespaces}
           expandedPods={app.k8s.expandedPods}
           pods={app.k8s.pods}
+          podSearchTerm={app.k8s.podSearchTerm}
+          globalPodResults={app.k8s.globalPodResults}
+          searchingPods={app.k8s.searchingPods}
           containers={app.k8s.containers}
+          onPodSearchTermChange={app.k8s.setPodSearchTerm}
+          onSelectPodFromSearch={app.k8s.selectPodFromSearch}
           onToggleNamespace={app.k8s.toggleNamespace}
           onTogglePod={app.k8s.togglePod}
           onSelectContainer={app.k8s.selectContainer}

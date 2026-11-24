@@ -309,6 +309,60 @@
   line-height: 16px;
 }
 
+/* 全局 Pod 搜索结果项：名称可换行完整显示，避免长名称被截断无法区分 */
+.pod-search-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 5px var(--sp-2);
+  border-radius: var(--r-sm);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+
+.pod-search-result:hover {
+  background: var(--bg-hover);
+}
+
+.pod-search-result.selected {
+  background: var(--bg-active);
+  border-left-color: var(--accent);
+}
+
+.pod-search-result-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+}
+
+.pod-search-result-header .pod-status-dot {
+  margin-top: 4px;
+}
+
+.pod-search-result-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-1);
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* 搜索结果项第二行的命名空间标签 */
+.pod-search-namespace {
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .tree-item-header.selected .tree-count {
   background: var(--accent-subtle);
   color: var(--accent);
@@ -354,13 +408,13 @@
   min-height: 0;
 }
 
-.docker-search {
+.sidebar-search {
   position: relative;
   margin: 0 var(--sp-3) var(--sp-2);
   flex-shrink: 0;
 }
 
-.docker-search input {
+.sidebar-search input {
   width: 100%;
   padding: 7px var(--sp-3);
   padding-right: 28px;
@@ -372,17 +426,17 @@
   font-family: inherit;
 }
 
-.docker-search input::placeholder {
+.sidebar-search input::placeholder {
   color: var(--text-3);
 }
 
-.docker-search input:focus {
+.sidebar-search input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
-.docker-search .search-clear {
+.sidebar-search .search-clear {
   position: absolute;
   right: 6px;
   top: 50%;
@@ -399,7 +453,7 @@
   cursor: pointer;
 }
 
-.docker-search .search-clear:hover {
+.sidebar-search .search-clear:hover {
   background: var(--bg-hover);
   color: var(--text-1);
 }

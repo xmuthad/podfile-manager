@@ -5,6 +5,7 @@ import { IPC_CHANNELS as CH } from './types.js';
 const electronAPI = {
   getNamespaces: () => ipcRenderer.invoke(CH.KUBECTL_GET_NAMESPACES),
   getPods: (namespace: string) => ipcRenderer.invoke(CH.KUBECTL_GET_PODS, namespace),
+  getAllPods: (searchTerm: string) => ipcRenderer.invoke(CH.KUBECTL_GET_ALL_PODS, searchTerm),
   getContainers: (namespace: string, pod: string) => ipcRenderer.invoke(CH.KUBECTL_GET_CONTAINERS, namespace, pod),
   listFiles: (namespace: string, pod: string, container: string | null, path: string) =>
     ipcRenderer.invoke(CH.KUBECTL_LIST_FILES, namespace, pod, container, path),

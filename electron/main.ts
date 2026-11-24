@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import type { TransferProgress, ContainerStatus, PodData, ContainerInfo } from './types.js';
+import type { ContainerStatus, PodData, ContainerInfo } from './types.js';
 import { IPC_CHANNELS as CH } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -14,6 +14,9 @@ const execAsync = promisify(exec);
 const fsAsync = fs.promises;
 
 const EXEC_COMMAND_TIMEOUT_MS = 60_000;
+// kubectl -o json 输出完整 spec/status/annotations，pod 较多的 namespace 可能超过 exec 默认 1MB，
+// 导致 "stdout maxBuffer length exceeded" 而加载失败，这里放宽到 50MB。
+const KUBE_JSON_MAX_BUFFER = 50 * 1024 * 1024;
 
 /**
  * 修复打包后 Electron 应用找不到 kubectl / docker 的问题。
@@ -51,6 +54,12 @@ function escapeShellArg(arg: string): string {
 function buildContainerArgs(container?: string | null): string[] {
   return container ? ['-c', container] : [];
 }
+
+/**
+ * 限速流方案已废弃：流式背压会让 exec 长连接持续低速传输，
+ * 集群链路上的中间层（LB/apiserver）会 reset 这类连接导致文件截断。
+ * 现改用 KUBECTL_DOWNLOAD_FILE_WITH_LIMIT 中的分块全速拉取 + 块间休眠方案。
+ */
 
 function buildKubectlCpArgs(
   namespace: string,
@@ -143,7 +152,7 @@ app.on('activate', () => {
 
 ipcMain.handle(CH.KUBECTL_GET_NAMESPACES, async () => {
   try {
-    const { stdout } = await execAsync('kubectl get namespaces -o json', { timeout: 30000 });
+    const { stdout } = await execAsync('kubectl get namespaces -o json', { timeout: 30000, maxBuffer: KUBE_JSON_MAX_BUFFER });
     return JSON.parse(stdout);
   } catch (error) {
     throw new Error((error as Error).message, { cause: error });
@@ -184,8 +193,24 @@ ipcMain.handle(CH.DOCKER_READ_FILE, async (_event, imageName: string, filePath: 
 ipcMain.handle(CH.KUBECTL_GET_PODS, async (_event, namespace: string) => {
   assertNonEmptyString(namespace, 'namespace');
   try {
-    const { stdout } = await execAsync(`kubectl get pods -n ${escapeShellArg(namespace)} -o json`, { timeout: 30000 });
+    const { stdout } = await execAsync(`kubectl get pods -n ${escapeShellArg(namespace)} -o json`, { timeout: 30000, maxBuffer: KUBE_JSON_MAX_BUFFER });
     return JSON.parse(stdout);
+  } catch (error) {
+    throw new Error((error as Error).message, { cause: error });
+  }
+});
+
+ipcMain.handle(CH.KUBECTL_GET_ALL_PODS, async (_event, searchTerm: string) => {
+  assertNonEmptyString(searchTerm, 'searchTerm');
+  try {
+    // 全命名空间查询，在主进程按名称过滤后只回传匹配项，避免大 JSON 走 IPC
+    const { stdout } = await execAsync('kubectl get pods -A -o json', { timeout: 30000, maxBuffer: KUBE_JSON_MAX_BUFFER });
+    const data = JSON.parse(stdout) as { items?: Array<{ metadata?: { name?: string } }> };
+    const lower = searchTerm.toLowerCase();
+    const items = (data.items ?? []).filter(
+      (pod) => typeof pod.metadata?.name === 'string' && pod.metadata.name.toLowerCase().includes(lower)
+    );
+    return { items };
   } catch (error) {
     throw new Error((error as Error).message, { cause: error });
   }
@@ -213,7 +238,7 @@ ipcMain.handle(CH.KUBECTL_GET_CONTAINERS, async (_event, namespace: string, pod:
   assertNonEmptyString(namespace, 'namespace');
   assertNonEmptyString(pod, 'pod');
   try {
-    const { stdout } = await execAsync(`kubectl get pod ${escapeShellArg(pod)} -n ${escapeShellArg(namespace)} -o json`, { timeout: 30000 });
+    const { stdout } = await execAsync(`kubectl get pod ${escapeShellArg(pod)} -n ${escapeShellArg(namespace)} -o json`, { timeout: 30000, maxBuffer: KUBE_JSON_MAX_BUFFER });
     const podData = JSON.parse(stdout) as PodData;
     const containers: ContainerInfo[] = podData.spec.containers.map((container: { name: string; image: string }) => ({
       name: container.name.trim(),
@@ -260,140 +285,124 @@ ipcMain.handle(CH.KUBECTL_DOWNLOAD_FILE_WITH_LIMIT, async (event: IpcMainInvokeE
   }
 
   try {
-    const initialProgress: TransferProgress = {
-      status: 'downloading',
-      transferred: 0,
-      total: 0,
-      percent: 0,
-      speed: `限速 ${limitSpeed}KB/s`
-    };
-    event.sender.send(CH.TRANSFER_PROGRESS, initialProgress);
-
+    const bytesPerSecond = limitSpeed * 1024;
     const containerArgs = buildContainerArgs(container);
     const escapedPath = escapeShellArg(remotePath);
-    const catCommand = `cat ${escapedPath}`;
-    const childProcess = spawn('kubectl', [
-      'exec', '-n', namespace, pod, ...containerArgs, '--',
-      'sh', '-c', catCommand
-    ]);
 
-    const writeStream = fs.createWriteStream(filePath);
-    let transferred = 0;
-    const bytesPerSecond = limitSpeed * 1024;
-    let stderrOutput = '';
-    let processFinished = false;
-    const throttleStart = Date.now();
-
-    let resolveNext: (() => void) | null = null;
-    const waitForDrain = () =>
-      new Promise<void>((resolve) => {
-        resolveNext = resolve;
-      });
-    writeStream.on('drain', () => {
-      if (resolveNext) {
-        const r = resolveNext;
-        resolveNext = null;
-        r();
-      }
-    });
-
-    const writeQueue: Buffer[] = [];
-    let writing = false;
-
-    const reportProgress = (): void => {
-      const speed = bytesPerSecond / 1024;
+    const sendProgress = (transferred: number): void => {
       event.sender.send(CH.TRANSFER_PROGRESS, {
         status: 'downloading',
         transferred,
         total: 0,
         percent: 0,
-        speed: `${speed.toFixed(2)}KB/s`
+        speed: `限速 ${limitSpeed}KB/s`
       });
     };
+    sendProgress(0);
 
-    async function processQueue(): Promise<void> {
-      if (writing || writeQueue.length === 0) return;
-      writing = true;
+    // 分块限速：exec 长连接持续低速传输会被集群链路中间层 reset（连接中断、文件截断），
+    // 因此按 offset 分块全速拉取，块间休眠把平均速率压到限速值。
+    const MAX_CHUNK_BYTES = 16 * 1024 * 1024;
+    let chunkBytes = 512 * 1024; // 首块保守起步，之后按观测吞吐自适应放大
+    let offset = 0;
 
-      while (writeQueue.length > 0) {
-        // 节流：累计已写入的字节数与限速上限对比，决定还要等多久
-        const elapsedSec = (Date.now() - throttleStart) / 1000;
-        const allowedBytes = bytesPerSecond * elapsedSec;
-        if (transferred > allowedBytes) {
-          const overshoot = transferred - allowedBytes;
-          const waitMs = Math.ceil((overshoot / bytesPerSecond) * 1000);
+    // 单块拉取：缓冲整块，校验远端退出标记后才落盘，失败可从同一 offset 幂等重试
+    const fetchChunk = (skipKB: number, countKB: number, onBytes: (received: number) => void): Promise<{ ok: boolean; data: Buffer[]; stderr: string }> =>
+      new Promise((resolve) => {
+        const command = `dd if=${escapedPath} bs=1024 skip=${skipKB} count=${countKB} 2>/dev/null; echo EXIT:$? >&2`;
+        const child = spawn('kubectl', ['exec', '-n', namespace, pod, ...containerArgs, '--', 'sh', '-c', command]);
+        const data: Buffer[] = [];
+        let received = 0;
+        let stderr = '';
+        child.stdout!.on('data', (d: Buffer) => {
+          data.push(d);
+          received += d.length;
+          onBytes(received);
+        });
+        child.stderr!.on('data', (d: Buffer) => {
+          stderr += d.toString();
+        });
+        child.on('error', (err: Error) => resolve({ ok: false, data: [], stderr: '无法启动 kubectl: ' + err.message }));
+        child.on('close', () => {
+          const match = stderr.match(/EXIT:(\d+)/);
+          if (match && match[1] === '0') {
+            resolve({ ok: true, data, stderr });
+          } else {
+            resolve({ ok: false, data: [], stderr: stderr || '未知错误' });
+          }
+        });
+      });
+
+    const writeStream = fs.createWriteStream(filePath);
+    let lastReport = 0;
+
+    try {
+      while (true) {
+        const t0 = Date.now();
+        const skipKB = offset / 1024;
+        const countKB = Math.ceil(chunkBytes / 1024);
+
+        let result = await fetchChunk(skipKB, countKB, (received) => {
+          const now = Date.now();
+          if (now - lastReport >= 200) {
+            lastReport = now;
+            sendProgress(offset + received);
+          }
+        });
+        // 失败块幂等重试（同一 offset，最多 3 次）
+        for (let attempt = 0; !result.ok && attempt < 3; attempt++) {
+          result = await fetchChunk(skipKB, countKB, () => { /* 重试期间不上报 */ });
+        }
+        if (!result.ok) {
+          throw new Error('限速下载失败: ' + result.stderr);
+        }
+
+        const chunk = Buffer.concat(result.data);
+        await new Promise<void>((resolve, reject) => {
+          writeStream.write(chunk, (err) => (err ? reject(err) : resolve()));
+        });
+        offset += chunk.length;
+        sendProgress(offset);
+
+        const elapsed = (Date.now() - t0) / 1000;
+        const isEof = chunk.length < countKB * 1024;
+        if (isEof) break;
+
+        // 节拍：让块期间平均速率收敛到限速值（块耗时已超限速预算则不休眠）
+        const targetPeriodSec = chunkBytes / bytesPerSecond;
+        const waitMs = Math.max(0, Math.ceil((targetPeriodSec - elapsed) * 1000));
+        if (waitMs > 0) {
           await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
         }
 
-        const data = writeQueue.shift();
-        if (data && !writeStream.destroyed) {
-          const ok = writeStream.write(data);
-          transferred += data.length;
-          if (!ok) {
-            // 缓冲已满，等待 drain 后继续
-            await waitForDrain();
-          }
-        }
-        reportProgress();
+        // 自适应下一块：目标 2s 的限速预算，同时按观测吞吐限制单块耗时至 ~3s，
+        // 保证每条 exec 连接短命，不触发链路中间层的低速连接 reset
+        const observedBps = chunkBytes / Math.max(elapsed, 0.001);
+        const nextByRate = bytesPerSecond * 2;
+        const nextByTime = Math.max(512 * 1024, observedBps * 3);
+        chunkBytes = Math.max(256 * 1024, Math.min(MAX_CHUNK_BYTES, nextByRate, nextByTime));
       }
-
-      writing = false;
+    } finally {
+      writeStream.end();
     }
 
-    childProcess.stdout!.on('data', (data: Buffer) => {
-      writeQueue.push(data);
-      processQueue();
+    // 完整性校验：远端文件大小与本地落盘字节数一致
+    const sizeArgs = ['exec', '-n', namespace, pod, ...containerArgs, '--', 'sh', '-c', `wc -c < ${escapedPath}`];
+    const { stdout: sizeOut } = await execAsync(`kubectl ${sizeArgs.map(a => escapeShellArg(a)).join(' ')}`, { timeout: 30000, maxBuffer: KUBE_JSON_MAX_BUFFER });
+    const remoteSize = parseInt(sizeOut.trim(), 10);
+    if (!Number.isNaN(remoteSize) && remoteSize !== offset) {
+      throw new Error(`限速下载失败: 文件不完整（本地 ${offset} 字节 / 远端 ${remoteSize} 字节）`);
+    }
+
+    event.sender.send(CH.TRANSFER_PROGRESS, {
+      status: 'completed',
+      transferred: offset,
+      total: offset,
+      percent: 100,
+      speed: `${limitSpeed}KB/s (limited)`
     });
 
-    childProcess.stderr!.on('data', (data: Buffer) => {
-      stderrOutput += data.toString();
-    });
-
-    childProcess.on('close', async (code: number | null) => {
-      if (processFinished) return;
-      processFinished = true;
-
-      writeStream.end();
-
-      if (code === 0) {
-        let finalSize = transferred;
-        try {
-          const stats = await fsAsync.stat(filePath);
-          finalSize = stats.size;
-        } catch (err) {
-          // 忽略 stat 错误，使用已传输字节数
-          void err;
-        }
-        event.sender.send(CH.TRANSFER_PROGRESS, {
-          status: 'completed',
-          transferred: finalSize,
-          total: finalSize,
-          percent: 100,
-          speed: `${limitSpeed}KB/s (limited)`
-        });
-      } else {
-        event.sender.send(CH.TRANSFER_PROGRESS, {
-          status: 'error',
-          transferred: 0,
-          total: 0,
-          message: '限速下载失败: ' + (stderrOutput || '退出码 ' + code)
-        });
-      }
-    });
-
-    childProcess.on('error', (error: Error) => {
-      if (processFinished) return;
-      processFinished = true;
-
-      writeStream.end();
-      event.sender.send(CH.TRANSFER_PROGRESS, {
-        status: 'error',
-        transferred: 0,
-        total: 0,
-        message: '限速下载失败: ' + error.message
-      });
-    });
-
+    return { success: true, path: filePath, method: 'dd-limit', speed: limitSpeed };
   } catch (error) {
     throw new Error((error as Error).message, { cause: error });
   }

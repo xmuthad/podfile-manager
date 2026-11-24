@@ -5,6 +5,7 @@ import type { ElectronAPI } from '../types';
 const createElectronAPIMock = (): ElectronAPI => ({
   getNamespaces: vi.fn().mockResolvedValue({ items: [] }),
   getPods: vi.fn().mockResolvedValue({ items: [] }),
+  getAllPods: vi.fn().mockResolvedValue({ items: [] }),
   getContainers: vi.fn().mockResolvedValue({ items: [] }),
   listFiles: vi.fn().mockResolvedValue(''),
   downloadFile: vi.fn().mockResolvedValue(null),

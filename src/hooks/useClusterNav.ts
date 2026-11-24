@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from 'react';
 import type { Container, Pod } from '../types';
 import type { ToastType } from './useToast';
 
@@ -14,6 +14,10 @@ export function useClusterNav(toast: ToastFn) {
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [selectedNamespace, setSelectedNamespace] = useState<string>('');
   const [pods, setPods] = useState<Pod[]>([]);
+  const [podSearchTerm, setPodSearchTerm] = useState('');
+  const deferredPodSearchTerm = useDeferredValue(podSearchTerm);
+  const [globalPodResults, setGlobalPodResults] = useState<Pod[]>([]);
+  const [searchingPods, setSearchingPods] = useState(false);
   const [selectedPod, setSelectedPod] = useState<string>('');
   const [containers, setContainers] = useState<Container[]>([]);
   const [selectedContainer, setSelectedContainer] = useState<string>('');
@@ -25,57 +29,92 @@ export function useClusterNav(toast: ToastFn) {
   const [error, setError] = useState<string>('');
 
   const selectedNamespaceRef = useRef(selectedNamespace);
-  const loadReqId = useRef(0);
+  // 三个 loader 各自独立请求序号：selectPodFromSearch 会并发触发 loadPods + loadContainers，
+  // 共用一个序号会互相取消，导致 pod 列表被丢弃。
+  const loadNsReqId = useRef(0);
+  const loadPodsReqId = useRef(0);
+  const loadContainersReqId = useRef(0);
+  const searchReqId = useRef(0);
+
+  // 全命名空间 Pod 搜索：防抖 300ms，请求序号防竞态
+  useEffect(() => {
+    const term = deferredPodSearchTerm.trim();
+    if (!term) {
+      ++searchReqId.current;
+      setGlobalPodResults([]);
+      setSearchingPods(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const reqId = ++searchReqId.current;
+      setSearchingPods(true);
+      try {
+        const result = await window.electronAPI.getAllPods(term);
+        if (reqId !== searchReqId.current) return;
+        setGlobalPodResults(result.items as Pod[]);
+      } catch (err: unknown) {
+        if (reqId !== searchReqId.current) return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (reqId === searchReqId.current) {
+          setSearchingPods(false);
+        }
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [deferredPodSearchTerm]);
 
   const loadNamespaces = useCallback(async () => {
-    const reqId = ++loadReqId.current;
+    const reqId = ++loadNsReqId.current;
     setLoading(true);
     setError('');
     try {
       const result = await window.electronAPI.getNamespaces();
-      if (reqId !== loadReqId.current) return;
+      if (reqId !== loadNsReqId.current) return;
       setNamespaces(result.items.map(ns => ns.metadata.name));
     } catch (err: unknown) {
-      if (reqId !== loadReqId.current) return;
+      if (reqId !== loadNsReqId.current) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      if (reqId === loadReqId.current) {
+      if (reqId === loadNsReqId.current) {
         setLoading(false);
       }
     }
   }, []);
 
   const loadPods = useCallback(async (namespace: string) => {
-    const reqId = ++loadReqId.current;
+    const reqId = ++loadPodsReqId.current;
     setLoading(true);
     setError('');
     try {
       const result = await window.electronAPI.getPods(namespace);
-      if (reqId !== loadReqId.current) return;
+      if (reqId !== loadPodsReqId.current) return;
       setPods(result.items);
     } catch (err: unknown) {
-      if (reqId !== loadReqId.current) return;
+      if (reqId !== loadPodsReqId.current) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      if (reqId === loadReqId.current) {
+      if (reqId === loadPodsReqId.current) {
         setLoading(false);
       }
     }
   }, []);
 
-  const loadContainers = useCallback(async (namespace: string, pod: string) => {
-    const reqId = ++loadReqId.current;
+  const loadContainers = useCallback(async (namespace: string, pod: string): Promise<Container[]> => {
+    const reqId = ++loadContainersReqId.current;
     setLoading(true);
     setError('');
     try {
       const result = await window.electronAPI.getContainers(namespace, pod);
-      if (reqId !== loadReqId.current) return;
+      if (reqId !== loadContainersReqId.current) return [];
       setContainers(result.items);
+      return result.items;
     } catch (err: unknown) {
-      if (reqId !== loadReqId.current) return;
+      if (reqId !== loadContainersReqId.current) return [];
       setError(err instanceof Error ? err.message : String(err));
+      return [];
     } finally {
-      if (reqId === loadReqId.current) {
+      if (reqId === loadContainersReqId.current) {
         setLoading(false);
       }
     }
@@ -131,6 +170,20 @@ export function useClusterNav(toast: ToastFn) {
     loadContainers(selectedNamespace, podName);
   }, [selectedNamespace, loadContainers]);
 
+  // 从全局搜索结果选中 Pod：定位到其命名空间并展开选中，返回第一个容器名供上层加载文件
+  const selectPodFromSearch = useCallback(async (namespace: string, podName: string): Promise<string> => {
+    setPodSearchTerm('');
+    setSelectedNamespace(namespace);
+    setSelectedPod(podName);
+    setSelectedContainer('');
+    setContainers([]);
+    setExpandedNamespaces(prev => new Set(prev).add(namespace));
+    setExpandedPods(prev => new Set(prev).add(podName));
+    loadPods(namespace);
+    const containers = await loadContainers(namespace, podName);
+    return containers[0]?.name ?? '';
+  }, [loadPods, loadContainers]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -157,6 +210,8 @@ export function useClusterNav(toast: ToastFn) {
   return useMemo(() => ({
     namespaces, selectedNamespace, setSelectedNamespace,
     pods, selectedPod, setSelectedPod,
+    podSearchTerm, setPodSearchTerm,
+    globalPodResults, searchingPods,
     containers, selectedContainer, setSelectedContainer,
     expandedNamespaces, setExpandedNamespaces,
     expandedPods, setExpandedPods,
@@ -164,10 +219,11 @@ export function useClusterNav(toast: ToastFn) {
     loading, setLoading, error, setError,
     selectedNamespaceRef,
     loadNamespaces, loadPods, loadContainers,
-    changeCluster, toggleNamespace, togglePod,
+    changeCluster, toggleNamespace, togglePod, selectPodFromSearch,
   }), [namespaces, selectedNamespace, pods, selectedPod,
+    podSearchTerm, globalPodResults, searchingPods,
     containers, selectedContainer, expandedNamespaces, expandedPods,
     clusterConfigs, selectedCluster, loading, error,
     loadNamespaces, loadPods, loadContainers,
-    changeCluster, toggleNamespace, togglePod]);
+    changeCluster, toggleNamespace, togglePod, selectPodFromSearch]);
 }
